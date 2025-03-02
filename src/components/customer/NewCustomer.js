@@ -2,6 +2,21 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom'; 
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { z } from 'zod';
+
+const customerSchema = z.object({
+    name: z.string().min(1, "Name is required"),
+    mobile: z.string()
+        .min(1, "Mobile number is required")
+        .regex(/^\d+$/, "Mobile number must contain only digits"),
+    email: z.string()
+        .min(1, "Email is required")
+        .email("Invalid email format"),
+    proposalsAwaiting: z.number().nonnegative("Must be a positive number"),
+    approveProposal: z.number().nonnegative("Must be a positive number"),
+    expiredProposal: z.number().nonnegative("Must be a positive number"),
+    unapprovedProposal: z.number().nonnegative("Must be a positive number")
+});
 
 const NewCustomer = () => {
     const { action, customerId } = useParams();
@@ -12,6 +27,7 @@ const NewCustomer = () => {
     const [loading, setLoading] = useState(false);
     const [fetchLoading, setFetchLoading] = useState(false);
     const [error, setError] = useState('');
+    const [validationErrors, setValidationErrors] = useState({});
     const [customer, setCustomer] = useState({
         name: '',
         mobile: '',
@@ -49,15 +65,50 @@ const NewCustomer = () => {
         if (isView) return;
         
         const { name, value } = e.target;
-        setCustomer(prev => ({
-            ...prev,
-            [name]: value
-        }));
+        
+        if (validationErrors[name]) {
+            setValidationErrors(prev => ({
+                ...prev,
+                [name]: undefined
+            }));
+        }
+        
+        if (['proposalsAwaiting', 'approveProposal', 'expiredProposal', 'unapprovedProposal'].includes(name)) {
+            setCustomer(prev => ({
+                ...prev,
+                [name]: value === '' ? 0 : Number(value)
+            }));
+        } else {
+            setCustomer(prev => ({
+                ...prev,
+                [name]: value
+            }));
+        }
+    };
+    
+    const validateForm = () => {
+        try {
+            customerSchema.parse(customer);
+            setValidationErrors({});
+            return true;
+        } catch (error) {
+            const formattedErrors = {};
+            error.errors.forEach(err => {
+                formattedErrors[err.path[0]] = err.message;
+            });
+            setValidationErrors(formattedErrors);
+            return false;
+        }
     };
     
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (isView) return; 
+        
+        if (!validateForm()) {
+            toast.error("Please fix the validation errors");
+            return;
+        }
         
         setLoading(true);
         setError('');
@@ -151,10 +202,12 @@ const NewCustomer = () => {
                                     name="name"
                                     value={customer.name}
                                     onChange={handleChange}
-                                    required
                                     disabled={isView}
-                                    className={`mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${isView ? 'bg-gray-100' : ''}`}
+                                    className={`mt-1 block w-full border ${validationErrors.name ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${isView ? 'bg-gray-100' : ''}`}
                                 />
+                                {validationErrors.name && (
+                                    <p className="mt-1 text-sm text-red-600">{validationErrors.name}</p>
+                                )}
                             </div>
                             
                             <div>
@@ -167,10 +220,12 @@ const NewCustomer = () => {
                                     name="mobile"
                                     value={customer.mobile}
                                     onChange={handleChange}
-                                    required
                                     disabled={isView}
-                                    className={`mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${isView ? 'bg-gray-100' : ''}`}
+                                    className={`mt-1 block w-full border ${validationErrors.mobile ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${isView ? 'bg-gray-100' : ''}`}
                                 />
+                                {validationErrors.mobile && (
+                                    <p className="mt-1 text-sm text-red-600">{validationErrors.mobile}</p>
+                                )}
                             </div>
                             
                             <div>
@@ -183,10 +238,12 @@ const NewCustomer = () => {
                                     name="email"
                                     value={customer.email}
                                     onChange={handleChange}
-                                    required
                                     disabled={isView || isEdit}
-                                    className={`mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${isView ? 'bg-gray-100' : ''}`}
+                                    className={`mt-1 block w-full border ${validationErrors.email ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${isView ? 'bg-gray-100' : ''}`}
                                 />
+                                {validationErrors.email && (
+                                    <p className="mt-1 text-sm text-red-600">{validationErrors.email}</p>
+                                )}
                             </div>
                         </div>
                         
@@ -205,8 +262,11 @@ const NewCustomer = () => {
                                     onChange={handleChange}
                                     min="0"
                                     disabled={isView}
-                                    className={`mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${isView ? 'bg-gray-100' : ''}`}
+                                    className={`mt-1 block w-full border ${validationErrors.proposalsAwaiting ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${isView ? 'bg-gray-100' : ''}`}
                                 />
+                                {validationErrors.proposalsAwaiting && (
+                                    <p className="mt-1 text-sm text-red-600">{validationErrors.proposalsAwaiting}</p>
+                                )}
                             </div>
                             
                             <div>
@@ -221,8 +281,11 @@ const NewCustomer = () => {
                                     onChange={handleChange}
                                     min="0"
                                     disabled={isView}
-                                    className={`mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${isView ? 'bg-gray-100' : ''}`}
+                                    className={`mt-1 block w-full border ${validationErrors.approveProposal ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${isView ? 'bg-gray-100' : ''}`}
                                 />
+                                {validationErrors.approveProposal && (
+                                    <p className="mt-1 text-sm text-red-600">{validationErrors.approveProposal}</p>
+                                )}
                             </div>
                             
                             <div>
@@ -237,8 +300,11 @@ const NewCustomer = () => {
                                     onChange={handleChange}
                                     min="0"
                                     disabled={isView}
-                                    className={`mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${isView ? 'bg-gray-100' : ''}`}
+                                    className={`mt-1 block w-full border ${validationErrors.expiredProposal ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${isView ? 'bg-gray-100' : ''}`}
                                 />
+                                {validationErrors.expiredProposal && (
+                                    <p className="mt-1 text-sm text-red-600">{validationErrors.expiredProposal}</p>
+                                )}
                             </div>
                             
                             <div>
@@ -253,8 +319,11 @@ const NewCustomer = () => {
                                     onChange={handleChange}
                                     min="0"
                                     disabled={isView}
-                                    className={`mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${isView ? 'bg-gray-100' : ''}`}
+                                    className={`mt-1 block w-full border ${validationErrors.unapprovedProposal ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${isView ? 'bg-gray-100' : ''}`}
                                 />
+                                {validationErrors.unapprovedProposal && (
+                                    <p className="mt-1 text-sm text-red-600">{validationErrors.unapprovedProposal}</p>
+                                )}
                             </div>
                         </div>
                     </div>

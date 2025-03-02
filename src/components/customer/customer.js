@@ -1,6 +1,14 @@
 import axios from 'axios';
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { 
+  createColumnHelper,
+  flexRender,
+  getCoreRowModel,
+  getSortedRowModel,
+  useReactTable,
+  getFilteredRowModel
+} from '@tanstack/react-table';
 
 const Customer = () => {
     const navigate = useNavigate();
@@ -11,11 +19,154 @@ const Customer = () => {
     const [error, setError] = useState('');
     const [activeDropdown, setActiveDropdown] = useState(null);
     const [dropdownPosition, setDropdownPosition] = useState('bottom');
-    const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'ascending' });
+    const [sorting, setSorting] = useState([{ id: 'name', desc: false }]);
     const [showSortDropdown, setShowSortDropdown] = useState(false);
     const tableRef = useRef(null);
     const dropdownRefs = useRef({});
     const sortDropdownRef = useRef(null);
+
+    const columnHelper = createColumnHelper();
+
+    const columns = [
+        columnHelper.accessor('index', {
+            header: 'Customer ID',
+            cell: info => info.getValue(),
+        }),
+        columnHelper.accessor('name', {
+            header: 'Customer Name',
+            cell: info => {
+                const customer = info.row.original;
+                return (
+                    <div>
+                        <div className="font-medium">{customer?.name}</div>
+                        <div className="text-sm text-gray-500">{customer?.mobile}</div>
+                        <div className="text-sm text-gray-500">{customer?.email}</div>
+                    </div>
+                );
+            },
+        }),
+        columnHelper.accessor('proposalsAwaiting', {
+            header: 'Approved Proposals',
+            cell: info => {
+                const value = info.getValue();
+                return (
+                    <div className="flex items-center">
+                        <span className="w-6 h-6 rounded-full bg-yellow-500 text-white flex items-center justify-center text-xs mr-2">
+                            2
+                        </span>
+                        <span>${value}</span>
+                    </div>
+                );
+            },
+        }),
+        columnHelper.accessor('approveProposal', {
+            header: 'Expired Proposals',
+            cell: info => {
+                const value = info.getValue();
+                return (
+                    <div className="flex items-center">
+                        <span className="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center text-xs mr-2">
+                            2
+                        </span>
+                        <span>${value}</span>
+                    </div>
+                );
+            },
+        }),
+        columnHelper.accessor('expiredProposal', {
+            header: 'Unapproved Proposals',
+            cell: info => {
+                const value = info.getValue();
+                return (
+                    <div className="flex items-center">
+                        <span className="w-6 h-6 rounded-full bg-gray-400 text-white flex items-center justify-center text-xs mr-2">
+                            2
+                        </span>
+                        <span>${value}</span>
+                    </div>
+                );
+            },
+        }),
+        columnHelper.accessor('unapprovedProposal', {
+            header: '',
+            cell: info => {
+                const customer = info.row.original;
+                const index = info.row.index;
+                return (
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                            <span className="w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-xs mr-2">
+                                2
+                            </span>
+                            <span>${customer?.unapprovedProposal}</span>
+                        </div>
+                        <div className="dropdown-container relative" ref={el => dropdownRefs.current[index] = el}>
+                            <button
+                                className="text-gray-500 hover:bg-gray-100 rounded-full p-1"
+                                onClick={(e) => toggleDropdown(index, e)}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                                </svg>
+                            </button>
+
+                            {activeDropdown === index && (
+                                <div
+                                    className={`absolute ${dropdownPosition === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'} right-0 w-48 bg-white rounded-md shadow-lg z-50 border`}
+                                >
+                                    <div className="py-1">
+                                        <button
+                                            onClick={() => handleAction("view", customer._id)}
+                                            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+                                                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                                                <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                                            </svg>
+                                            View
+                                        </button>
+                                        <button
+                                            onClick={() => handleAction("edit", customer._id)}
+                                            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+                                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                            </svg>
+                                            Edit
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(customer._id)}
+                                            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-red-600" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                            </svg>
+                                            Delete
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            },
+        }),
+    ];
+
+    const table = useReactTable({
+        data: filteredCustomers,
+        columns,
+        state: {
+            sorting,
+            globalFilter: searchTerm,
+        },
+        onSortingChange: setSorting,
+        onGlobalFilterChange: setSearchTerm,
+        globalFilterFn: 'includesString',
+        getCoreRowModel: getCoreRowModel(),
+        getSortedRowModel: getSortedRowModel(),
+        getFilteredRowModel: getFilteredRowModel(),
+    });
 
     useEffect(() => {
         fetchUser();
@@ -28,7 +179,6 @@ const Customer = () => {
             if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target)) {
                 setShowSortDropdown(false);
             }
-
         };
 
         document.addEventListener('mousedown', handleClickOutside);
@@ -39,8 +189,13 @@ const Customer = () => {
     }, []);
 
     useEffect(() => {
-        let result = [...customers];
-
+        if (customers.length > 0) {
+            const indexedCustomers = customers.map((customer, index) => ({
+                ...customer,
+                index: index + 1
+            }));
+            
+            let result = [...indexedCustomers];
         if (searchTerm.trim() !== '') {
             const lowercasedSearch = searchTerm.toLowerCase();
             result = result.filter(customer =>
@@ -50,20 +205,9 @@ const Customer = () => {
             );
         }
 
-        if (sortConfig.key) {
-            result.sort((a, b) => {
-                if (a[sortConfig.key] < b[sortConfig.key]) {
-                    return sortConfig.direction === 'ascending' ? -1 : 1;
-                }
-                if (a[sortConfig.key] > b[sortConfig.key]) {
-                    return sortConfig.direction === 'ascending' ? 1 : -1;
-                }
-                return 0;
-            });
+            setFilteredCustomers(result);
         }
-
-        setFilteredCustomers(result);
-    }, [searchTerm, customers, sortConfig]);
+    }, [searchTerm, customers]);
 
     const fetchUser = async () => {
         setLoading(true);
@@ -71,7 +215,6 @@ const Customer = () => {
             const response = await axios.get(`${process.env.REACT_APP_BASE_URL}/customers`);
             console.log('response', response);
             setCustomers(response?.data?.customers || []);
-            setFilteredCustomers(response?.data?.customers || []);
         } catch (error) {
             console.log("error", error);
             setError('Failed to fetch customers. Please try again later.');
@@ -131,11 +274,7 @@ const Customer = () => {
     };
 
     const handleSort = (key) => {
-        let direction = 'ascending';
-        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
-            direction = 'descending';
-        }
-        setSortConfig({ key, direction });
+        setSorting([{ id: key, desc: sorting[0]?.id === key && !sorting[0]?.desc }]);
         setShowSortDropdown(false);
     };
 
@@ -194,41 +333,39 @@ const Customer = () => {
                                             onClick={() => handleSort('name')}
                                             className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                                         >
-                                            {sortConfig.key === 'name' && (
+                                            {sorting[0]?.id === 'name' && (
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
                                                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                                 </svg>
                                             )}
-                                            <span className={sortConfig.key === 'name' ? 'ml-2 text-blue-600' : 'ml-7'}>Name</span>
+                                            <span className={sorting[0]?.id === 'name' ? 'ml-2 text-blue-600' : 'ml-7'}>Name</span>
                                         </button>
                                         <button
                                             onClick={() => handleSort('email')}
                                             className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                                         >
-                                            {sortConfig.key === 'email' && (
+                                            {sorting[0]?.id === 'email' && (
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
                                                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                                 </svg>
                                             )}
-                                            <span className={sortConfig.key === 'email' ? 'ml-2 text-blue-600' : 'ml-7'}>Email</span>
+                                            <span className={sorting[0]?.id === 'email' ? 'ml-2 text-blue-600' : 'ml-7'}>Email</span>
                                         </button>
                                         <button
                                             onClick={() => handleSort('mobile')}
                                             className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                                         >
-                                            {sortConfig.key === 'mobile' && (
+                                            {sorting[0]?.id === 'mobile' && (
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
                                                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                                 </svg>
                                             )}
-                                            <span className={sortConfig.key === 'mobile' ? 'ml-2 text-blue-600' : 'ml-7'}>Phone</span>
+                                            <span className={sorting[0]?.id === 'mobile' ? 'ml-2 text-blue-600' : 'ml-7'}>Phone</span>
                                         </button>
-                                       
                                     </div>
                                 </div>
                             )}
                         </div>
-
 
                         <button onClick={() => navigate('/customers/new')} className="bg-blue-900 text-white px-4 py-2 rounded">
                             Add Customer
@@ -244,11 +381,13 @@ const Customer = () => {
 
                 <div ref={tableRef} className="bg-white rounded-lg shadow overflow-hidden">
                     <div className="grid grid-cols-6 bg-blue-900 text-white p-4">
-                        <div>Customer ID</div>
-                        <div>Customer Name</div>
-                        <div>Approved Proposals</div>
-                        <div>Expired Proposals</div>
-                        <div>Unapproved Proposals</div>
+                        {table.getHeaderGroups().map(headerGroup => (
+                            headerGroup.headers.map(header => (
+                                <div key={header.id} className="cursor-pointer" onClick={header.column.getToggleSortingHandler()}>
+                                    {flexRender(header.column.columnDef.header, header.getContext())}
+                                </div>
+                            ))
+                        ))}
                     </div>
 
                     {loading ? (
@@ -280,95 +419,13 @@ const Customer = () => {
                             )}
                         </div>
                     ) : (
-                        filteredCustomers.map((customer, index) => (
-                            <div key={index} className="grid grid-cols-6 p-4 border-b">
-                                <div>{index + 1}</div>
-                                <div>
-                                    <div className="font-medium">{customer?.name}</div>
-                                    <div className="text-sm text-gray-500">{customer?.mobile}</div>
-                                    <div className="text-sm text-gray-500">{customer?.email}</div>
+                        table.getRowModel().rows.map(row => (
+                            <div key={row.id} className="grid grid-cols-6 p-4 border-b">
+                                {row.getVisibleCells().map(cell => (
+                                    <div key={cell.id}>
+                                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                 </div>
-                                <div>
-                                    <div className="flex items-center">
-                                        <span className="w-6 h-6 rounded-full bg-yellow-500 text-white flex items-center justify-center text-xs mr-2">
-                                            2
-                                        </span>
-                                        <span>${customer?.proposalsAwaiting}</span>
-                                    </div>
-                                </div>
-                                <div>
-                                    <div className="flex items-center">
-                                        <span className="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center text-xs mr-2">
-                                            2
-                                        </span>
-                                        <span>${customer?.approveProposal}</span>
-                                    </div>
-                                </div>
-                                <div>
-                                    <div className="flex items-center">
-                                        <span className="w-6 h-6 rounded-full bg-gray-400 text-white flex items-center justify-center text-xs mr-2">
-                                            2
-                                        </span>
-                                        <span>${customer?.expiredProposal}</span>
-                                    </div>
-                                </div>
-                                <div>
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center">
-                                            <span className="w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-xs mr-2">
-                                                2
-                                            </span>
-                                            <span>${customer?.unapprovedProposal}</span>
-                                        </div>
-                                        <div className="dropdown-container relative" ref={el => dropdownRefs.current[index] = el}>
-                                            <button
-                                                className="text-gray-500 hover:bg-gray-100 rounded-full p-1"
-                                                onClick={(e) => toggleDropdown(index, e)}
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                                                </svg>
-                                            </button>
-
-                                            {activeDropdown === index && (
-                                                <div
-                                                    className={`absolute ${dropdownPosition === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'} right-0 w-48 bg-white rounded-md shadow-lg z-50 border`}
-                                                >
-                                                    <div className="py-1">
-                                                        <button
-                                                            onClick={() => handleAction("view", customer._id)}
-                                                            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                                        >
-                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
-                                                                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                                                                <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                                                            </svg>
-                                                            View
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleAction("edit", customer._id)}
-                                                            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                                        >
-                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
-                                                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                                            </svg>
-                                                            Edit
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDelete(customer._id)}
-                                                            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                                        >
-                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-red-600" viewBox="0 0 20 20" fill="currentColor">
-                                                                <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                                                            </svg>
-                                                            Delete
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
+                                ))}
                             </div>
                         ))
                     )}
@@ -389,7 +446,6 @@ const Customer = () => {
                                         </button>
                                     </span>
                                 )}
-
                             </div>
                         )}
                     </div>
